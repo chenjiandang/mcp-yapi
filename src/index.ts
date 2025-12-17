@@ -82,6 +82,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     if (name === "get_yapi_interface") {
+      if (!args) {
+        throw new Error("缺少参数");
+      }
       const interfaceId = String(args.interfaceId);
       const data = await getYapiInterface(
         YAPI_BASE_URL,
@@ -97,7 +100,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           },
         ],
       };
-    } else if (name === "get_yapi_category") {
+    } else if (name === "get_yapi_category") {     
+         if (!args) {
+        throw new Error("缺少参数");
+      }     
       const categoryId = String(args.categoryId);
       const interfaces = await getYapiCategoryInterfaces(
         YAPI_BASE_URL,
