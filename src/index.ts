@@ -14,15 +14,17 @@ import {
   type YapiInterface,
 } from "./yapi.js";
 
-dotenv.config();
+// MCP 服务通过 stdio 运行时，环境变量由调用方配置提供，不需要本地 .env 文件
+// dotenv.config();
 
-const YAPI_BASE_URL = process.env.YAPI_BASE_URL || "";
+const YAPI_BASE_URL = process.env.YAPI_BASE_URL || process.env.YAPI_URL || "";
 const YAPI_TOKEN = process.env.YAPI_TOKEN || "";
 
-if (!YAPI_BASE_URL || !YAPI_TOKEN) {
-  console.error("错误: 请在 .env 文件中配置 YAPI_BASE_URL 和 YAPI_TOKEN");
-  process.exit(1);
-}
+// 移除启动时的强制检查，改为在运行时检查并返回友好错误信息
+// if (!YAPI_BASE_URL || !YAPI_TOKEN) {
+//   console.error("错误: 请配置 YAPI_BASE_URL(或 YAPI_URL) 和 YAPI_TOKEN 环境变量");
+//   process.exit(1);
+// }
 
 // 定义工具
 const tools: Tool[] = [
@@ -44,13 +46,13 @@ const tools: Tool[] = [
   {
     name: "get_yapi_category",
     description:
-      "获取YApi分类下的所有接口信息。输入格式为 cat_${id}，返回该分类下所有接口的入参和出参信息。",
+      "获取YApi分类下的所有接口信息。输入格式支持 cat_293 或 293，返回该分类下所有接口的入参和出参信息。",
     inputSchema: {
       type: "object",
       properties: {
         categoryId: {
           type: "string",
-          description: "YApi分类ID，格式为数字字符串",
+          description: "YApi分类ID，格式可以是 cat_293 或 293",
         },
       },
       required: ["categoryId"],
@@ -81,6 +83,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
+    // 运行时检查环境变量
+    if (!YAPI_BASE_URL || !YAPI_TOKEN) {
+      throw new Error(
+        "未配置 YApi 环境变量。请在 MCP 客户端配置中设置 YAPI_URL 和 YAPI_TOKEN"
+      );
+    }
+
     if (name === "get_yapi_interface") {
       if (!args) {
         throw new Error("缺少参数");
@@ -104,14 +113,45 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
          if (!args) {
         throw new Error("缺少参数");
       }     
-      const categoryId = String(args.categoryId);
+      let categoryId = String(args.categoryId);
+      
+      // 支持 cat_293 和 293 两种格式，自动去掉 cat_ 前缀
+      if (categoryId.startsWith("cat_")) {
+        categoryId = categoryId.substring(4);
+      }
+      
+      console.error(`正在获取分类 ${categoryId} 的接口列表...`);
+      
       const interfaces = await getYapiCategoryInterfaces(
         YAPI_BASE_URL,
         YAPI_TOKEN,
         categoryId
       );
 
-      // 获取每个接口的详细信息
+      console.error(`分类接口数量: ${interfaces.length}`);
+
+      // 如果没有接口，直接返回
+      if (interfaces.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  categoryId,
+                  totalCount: 0,
+                  interfaces: [],
+                  message: "该分类下没有接口"
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      // 获取每个接口的详细信息（如果失败则使用基本信息）
       const detailedInterfaces = await Promise.all(
         interfaces.map(async (iface) => {
           try {
@@ -123,15 +163,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             return detail;
           } catch (error) {
             console.error(`获取接口 ${iface._id} 详情失败:`, error);
-            return null;
+            // 如果获取详情失败，返回基本的列表信息
+            return {
+              ...iface,
+              _detailError: `获取详情失败: ${error instanceof Error ? error.message : String(error)}`,
+            };
           }
         })
       );
 
-      const validInterfaces = detailedInterfaces.filter(
-        (iface) => iface !== null
-      );
-
+      // 所有接口都返回（即使只有基本信息）
       return {
         content: [
           {
@@ -139,8 +180,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             text: JSON.stringify(
               {
                 categoryId,
-                totalCount: validInterfaces.length,
-                interfaces: validInterfaces,
+                totalCount: detailedInterfaces.length,
+                interfaces: detailedInterfaces,
               },
               null,
               2
@@ -170,7 +211,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  
+  // 输出调试信息到 stderr（不影响 stdio 通信）
   console.error("YApi MCP 服务器已启动");
+  console.error(`YAPI_URL: ${YAPI_BASE_URL ? '已配置' : '未配置'}`);
+  console.error(`YAPI_TOKEN: ${YAPI_TOKEN ? '已配置' : '未配置'}`);
 }
 
 main().catch((error) => {

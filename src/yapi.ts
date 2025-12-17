@@ -17,6 +17,9 @@ export interface YapiInterface {
   res_body_type?: string;
   desc?: string;
   markdown?: string;
+  // 添加完整的 URL 信息
+  full_url?: string;
+  basepath?: string;
 }
 
 export interface YapiCategory {
@@ -31,15 +34,23 @@ export interface YapiCategory {
  * 创建带认证的 axios 实例
  */
 function createYapiClient(baseUrl: string, token: string): AxiosInstance {
-  return axios.create({
+  const client = axios.create({
     baseURL: baseUrl,
     headers: {
       "Content-Type": "application/json",
     },
-    params: {
-      token,
-    },
   });
+
+  // 使用请求拦截器自动添加 token
+  client.interceptors.request.use((config) => {
+    config.params = {
+      ...config.params,
+      token,
+    };
+    return config;
+  });
+
+  return client;
 }
 
 /**
@@ -56,7 +67,6 @@ export async function getYapiInterface(
     const response = await client.get("/api/interface/get", {
       params: {
         id: interfaceId,
-        token,
       },
     });
 
@@ -86,10 +96,15 @@ export async function getYapiInterface(
       // 保持原始字符串
     }
 
+    // 构造完整的接口 URL
+    const basepath = data.basepath || "";
+    const fullUrl = basepath + data.path;
+
     return {
       ...data,
       req_body_other: reqBodyParsed,
       res_body: resBodyParsed,
+      full_url: fullUrl,
     };
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -115,15 +130,19 @@ export async function getYapiCategoryInterfaces(
     const response = await client.get("/api/interface/list_cat", {
       params: {
         catid: categoryId,
-        token,
       },
     });
+
+    console.error(`YApi 分类接口响应:`, JSON.stringify(response.data, null, 2));
 
     if (response.data.errcode !== 0) {
       throw new Error(response.data.errmsg || "获取分类接口列表失败");
     }
 
-    return response.data.data.list || [];
+    const list = response.data.data?.list || [];
+    console.error(`获取到 ${list.length} 个接口`);
+    
+    return list;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       throw new Error(
@@ -148,7 +167,6 @@ export async function getYapiCategories(
     const response = await client.get("/api/interface/list_menu", {
       params: {
         project_id: projectId,
-        token,
       },
     });
 
