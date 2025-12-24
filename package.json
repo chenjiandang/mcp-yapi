@@ -4,6 +4,7 @@
   "description": "MCP server for YApi integration",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -16,6 +17,20 @@
   ],
   "author": "",
   "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "mcp-yapi-server": "dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "prepare": "npm run build",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.7.9",
