@@ -2,9 +2,9 @@
 import axios from 'axios';
 
 // 请替换成你的实际配置
-const YAPI_URL = 'https://xyapi.col.com'; // 去掉末尾的斜杠
-const YAPI_TOKEN = 'dbfd57dc6828920c5aaf5e1c5d7979ca0fc9a3c63025d70c94b00743b9d1be2d';
-const CATEGORY_ID = '293'; // 你要测试的分类ID
+const YAPI_URL = ''; // 去掉末尾的斜杠
+const YAPI_TOKEN = '';
+const CATEGORY_ID = '303'; // 你要测试的分类ID
 
 async function testYapiConnection() {
   console.log('=== 测试 YApi 连接 ===');

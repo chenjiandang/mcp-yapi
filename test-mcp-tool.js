@@ -1,13 +1,13 @@
 // 完整测试 MCP 工具调用
 import { getYapiCategoryInterfaces, getYapiInterface } from './dist/yapi.js';
 
-const YAPI_URL = 'https://xyapi.col.com';
-const YAPI_TOKEN = 'dbfd57dc6828920c5aaf5e1c5d7979ca0fc9a3c63025d70c94b00743b9d1be2d';
+const YAPI_URL = '';
+const YAPI_TOKEN = '';
 
 async function testMcpTool() {
   console.log('=== 测试 MCP get_yapi_category 工具 ===\n');
   
-  let categoryId = 'cat_293';
+  let categoryId = 'cat_303';
   
   // 支持 cat_293 和 293 两种格式，自动去掉 cat_ 前缀
   if (categoryId.startsWith("cat_")) {
